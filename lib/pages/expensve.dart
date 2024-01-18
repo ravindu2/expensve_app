@@ -1,7 +1,9 @@
 import 'package:advance_app/models/expensce.dart';
+import 'package:advance_app/server/database.dart';
 import 'package:advance_app/widget/add_new_expensce.dart';
 import 'package:advance_app/widget/expence_list.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'package:pie_chart/pie_chart.dart';
 
 class Expensve extends StatefulWidget {
@@ -12,23 +14,9 @@ class Expensve extends StatefulWidget {
 }
 
 class _ExpensveState extends State<Expensve> {
-  final List<ExpenceModel> _expensceList = [
-    ExpenceModel(
-        amount: 22.21,
-        title: "Football",
-        date: DateTime.now(),
-        category: Category.leasure),
-    ExpenceModel(
-        amount: 12.24,
-        title: "burger",
-        date: DateTime.now(),
-        category: Category.food),
-    ExpenceModel(
-        amount: 20,
-        title: "Bsg",
-        date: DateTime.now(),
-        category: Category.travel)
-  ];
+  final _myBox = Hive.box("expensvebox");
+
+  Database db = Database();
 
   Map<String, double> dataMap = {
     "Food": 0,
@@ -39,8 +27,9 @@ class _ExpensveState extends State<Expensve> {
 
   void onnewAddExpence(ExpenceModel expence) {
     setState(() {
-      _expensceList.add(expence);
+      db.expenceList.add(expence);
     });
+    db.updateData();
   }
 
   void _openAddExpencesverlay() {
@@ -65,7 +54,7 @@ class _ExpensveState extends State<Expensve> {
     double workcal = 0;
     double lesiurecal = 0;
 
-    for (final expence in _expensceList) {
+    for (final expence in db.expenceList) {
       if (expence.category == Category.food) {
         foodcal += expence.amount;
       }
@@ -98,7 +87,13 @@ class _ExpensveState extends State<Expensve> {
   @override
   void initState() {
     super.initState();
-    calculatevalue();
+    if (_myBox.get("EXP_DATA") == null) {
+      db.createInitialDatabase();
+      calculatevalue();
+    } else {
+      db.loadData();
+      calculatevalue();
+    }
   }
 
   @override
@@ -125,12 +120,12 @@ class _ExpensveState extends State<Expensve> {
         children: [
           PieChart(dataMap: dataMap),
           ExpendList(
-            expenceList: _expensceList,
+            expenceList: db.expenceList,
             onDeleteExpense: (expence) {
               ExpenceModel deletingExpence = expence;
-              final int removingIndex = _expensceList.indexOf(expence);
+              final int removingIndex = db.expenceList.indexOf(expence);
               setState(() {
-                _expensceList.remove(expence);
+                db.expenceList.remove(expence);
               });
 
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -139,7 +134,7 @@ class _ExpensveState extends State<Expensve> {
                     label: "Undo",
                     onPressed: () {
                       setState(() {
-                        _expensceList.insert(removingIndex, deletingExpence);
+                        db.expenceList.insert(removingIndex, deletingExpence);
                       });
                     }),
               ));
